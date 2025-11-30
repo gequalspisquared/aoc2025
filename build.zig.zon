@@ -1,0 +1,14 @@
+.{
+    .name = .aoc2025,
+    .version = "0.0.0",
+    .fingerprint = 0x52176dd57fa1e8a2, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.16.0-dev.1326+2e6f7d36b",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+        "README.md",
+    },
+}
