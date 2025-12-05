@@ -12,7 +12,8 @@ fn parse_input(comptime input: []const u8) !void {
     fresh_ingredient_ranges = .{};
     ingredient_ids = .{};
 
-    var lines = std.mem.splitAny(u8, input, "\n");
+    // I dislike windows line endings
+    var lines = std.mem.splitSequence(u8, input, "\r\n");
     while (lines.next()) |line| {
         if (line.len == 0) break;
 
@@ -36,11 +37,11 @@ pub fn main() !void {
     defer fresh_ingredient_ranges.deinit(allocator);
     defer ingredient_ids.deinit(allocator);
 
-    const num_fresh_ingredients1 = try part1();
-    std.debug.print("The number of fresh ingredients for part1 is: {d}\n", .{num_fresh_ingredients1});
+    const num_fresh_ingredients = try part1();
+    std.debug.print("The number of fresh ingredients for part1 is: {d}\n", .{num_fresh_ingredients});
 
-    const num_fresh_ingredients2 = try part2();
-    std.debug.print("The number of fresh ingredients for part2 is: {d}\n", .{num_fresh_ingredients2});
+    const num_unique_ingredients = try part2();
+    std.debug.print("The number of fresh unique ingredient ids for part2 is: {d}\n", .{num_unique_ingredients});
 }
 
 fn part1() !i64 {
@@ -60,80 +61,32 @@ fn part1() !i64 {
 }
 
 fn part2() !i64 {
-    // // need a way to either combine the ranges, or reduce them to
-    // // be non-overlapping
-    // var non_overlapping_ranges = std.ArrayList([2]i64){};
-    // defer non_overlapping_ranges.deinit(allocator);
-    //
-    // outer: for (fresh_ingredient_ranges.items) |range| {
-    //     var range_start = range[0];
-    //     var range_end = range[1];
-    //
-    //     // split
-    //
-    //     for (non_overlapping_ranges.items) |non_overlapping_range| {
-    //         const non_overlapping_start = non_overlapping_range[0];
-    //         const non_overlapping_end = non_overlapping_range[1];
-    //
-    //         // completely to the right
-    //         if (non_overlapping_end <= range_start) continue;
-    //
-    //         // completely to the left
-    //         if (range_end <= non_overlapping_start) continue;
-    //
-    //         // lies completely in the middle of the range, don't need it
-    //         if (non_overlapping_start <= range_start and range_end <= non_overlapping_end) continue :outer;
-    //
-    //         // lies on the left
-    //         if (range_start <= non_overlapping_start and range_end <= non_overlapping_end) {
-    //             range_end = non_overlapping_start - 1;
-    //             //range[1] = non_overlapping_start - 1;
-    //             continue;
-    //         }
-    //
-    //         // lies on the right
-    //         if (non_overlapping_start <= range_start and non_overlapping_end <= range_end) {
-    //             range_start = non_overlapping_end + 1;
-    //             //range[0] = non_overlapping_end + 1;
-    //             continue;
-    //         }
-    //
-    //         std.debug.print("range: {d}-{d}\n", .{ range_start, range_end });
-    //         std.debug.print("non_overlapping_range: {d}-{d}\n", .{ non_overlapping_start, non_overlapping_end });
-    //
-    //         unreachable;
-    //     }
-    //
-    //     try non_overlapping_ranges.append(allocator, .{ range_start, range_end });
-    // }
-    //
-    // std.debug.print("non_overlapping_ranges\n", .{});
-    // for (non_overlapping_ranges.items) |range| {
-    //     std.debug.print("{d}-{d}\n", .{ range[0], range[1] });
-    // }
-    //
-    // var num: isize = 0;
-    // for (non_overlapping_ranges.items) |range| {
-    //     const num_in_range = range[1] - range[0] + 1;
-    //     num += num_in_range;
-    // }
-    //
-    // return num;
-
-    var valid_ingredient_ids = std.AutoHashMap(i64, void).init(allocator);
-    defer valid_ingredient_ids.deinit();
-    for (fresh_ingredient_ranges.items) |fresh_ingredient_range| {
-        std.debug.print("hit range\n", .{});
-        const range_start = fresh_ingredient_range[0];
-        const range_end = fresh_ingredient_range[1];
-
-        var current_id = range_start;
-        while (current_id <= range_end) : (current_id += 1) {
-            try valid_ingredient_ids.put(current_id, {});
+    // Sort by range begin
+    std.mem.sort([2]i64, fresh_ingredient_ranges.items, {}, struct {
+        pub fn lessThan(ctx: void, a: [2]i64, b: [2]i64) bool {
+            _ = ctx;
+            return a[0] < b[0];
         }
+    }.lessThan);
+
+    var num_unique: i64 = 0;
+    var prev_end: i64 = 0;
+    for (fresh_ingredient_ranges.items) |range| {
+        const start = range[0];
+        const end = range[1];
+
+        if (end <= prev_end) continue;
+
+        const left = if (prev_end >= start) prev_end else blk: {
+            num_unique += 1;
+            break :blk start;
+        };
+
+        num_unique += end - left;
+        prev_end = end;
     }
 
-    return valid_ingredient_ids.count();
+    return num_unique;
 }
 
 test "day05 part1" {
@@ -150,6 +103,6 @@ test "day05 part2" {
     defer fresh_ingredient_ranges.deinit(allocator);
     defer ingredient_ids.deinit(allocator);
 
-    const num_fresh = try part2();
-    try std.testing.expect(num_fresh == 14);
+    const num_unique = try part2();
+    try std.testing.expect(num_unique == 14);
 }
